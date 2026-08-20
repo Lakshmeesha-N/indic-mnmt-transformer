@@ -1,0 +1,8 @@
+huggingface_hub
+datasets
+python-dotenv
+hf_transfer
+pydantic-settings
+torch
+transformers
+sentencepiece
