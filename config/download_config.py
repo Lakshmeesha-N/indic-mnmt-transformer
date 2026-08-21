@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class DownloadSettings(BaseSettings):
     DOWNLOAD_MODE: str = "develop"          # "develop" or "train"
-    DEV_SAMPLE_SIZE: int = 100
+    DEV_SAMPLE_SIZE: int = 1000000
 
     HF_HUB_DOWNLOAD_TIMEOUT: str = "120"
     HF_HUB_ENABLE_HF_XET: str = "0"
