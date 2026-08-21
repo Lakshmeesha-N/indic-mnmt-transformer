@@ -1,9 +1,9 @@
 """
 config/train_config.py
 
-Configuration for the training stage.
+Configuration for the training and preprocessing stage.
 Auto-detects Google Colab environment, mounts Google Drive if running on Colab,
-and routes checkpoints and logs to Google Drive automatically without needing a .env file.
+and routes tokenized data, checkpoints, and logs directly to Google Drive without needing a .env file.
 """
 
 import os
@@ -53,11 +53,13 @@ class TrainSettings(BaseSettings):
 
     # --- storage & google drive settings ---
     USE_DRIVE_ON_COLAB: bool = True
-    DRIVE_FOLDER_NAME: str = "MMT"  # Folder created in your Google Drive
+    STORE_TOKENIZED_ON_DRIVE: bool = True  # If True, stores data/tokenized on Drive
+    DRIVE_FOLDER_NAME: str = "MMT"          # Root folder created in Google Drive
 
     # Optional manual overrides (if set, takes highest priority)
     CKPT_DIR_OVERRIDE: str = ""
     LOG_DIR_OVERRIDE: str = ""
+    TOK_DIR_OVERRIDE: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -72,7 +74,37 @@ class TrainSettings(BaseSettings):
 
     @property
     def TOK_TRAIN_DIR(self) -> str:
-        return os.path.join(self.BASE_DIR, "data", "tokenized", "train")
+        if self.TOK_DIR_OVERRIDE:
+            path = os.path.join(self.TOK_DIR_OVERRIDE, "train")
+            os.makedirs(path, exist_ok=True)
+            return path
+
+        if is_colab() and self.USE_DRIVE_ON_COLAB and self.STORE_TOKENIZED_ON_DRIVE:
+            mount_google_drive()
+            drive_tok_dir = f"/content/drive/MyDrive/{self.DRIVE_FOLDER_NAME}/data/tokenized/train"
+            os.makedirs(drive_tok_dir, exist_ok=True)
+            return drive_tok_dir
+
+        path = os.path.join(self.BASE_DIR, "data", "tokenized", "train")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def TOK_TEST_DIR(self) -> str:
+        if self.TOK_DIR_OVERRIDE:
+            path = os.path.join(self.TOK_DIR_OVERRIDE, "test")
+            os.makedirs(path, exist_ok=True)
+            return path
+
+        if is_colab() and self.USE_DRIVE_ON_COLAB and self.STORE_TOKENIZED_ON_DRIVE:
+            mount_google_drive()
+            drive_tok_dir = f"/content/drive/MyDrive/{self.DRIVE_FOLDER_NAME}/data/tokenized/test"
+            os.makedirs(drive_tok_dir, exist_ok=True)
+            return drive_tok_dir
+
+        path = os.path.join(self.BASE_DIR, "data", "tokenized", "test")
+        os.makedirs(path, exist_ok=True)
+        return path
 
     @property
     def CKPT_DIR(self) -> str:
@@ -85,7 +117,9 @@ class TrainSettings(BaseSettings):
             os.makedirs(drive_ckpt_dir, exist_ok=True)
             return drive_ckpt_dir
 
-        return os.path.join(self.BASE_DIR, "checkpoints")
+        path = os.path.join(self.BASE_DIR, "checkpoints")
+        os.makedirs(path, exist_ok=True)
+        return path
 
     @property
     def LOG_DIR(self) -> str:
@@ -98,7 +132,9 @@ class TrainSettings(BaseSettings):
             os.makedirs(drive_log_dir, exist_ok=True)
             return drive_log_dir
 
-        return os.path.join(self.BASE_DIR, "logs")
+        path = os.path.join(self.BASE_DIR, "logs")
+        os.makedirs(path, exist_ok=True)
+        return path
 
     @property
     def DEVICE(self):

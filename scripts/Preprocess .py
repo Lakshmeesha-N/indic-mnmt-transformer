@@ -7,7 +7,7 @@ Steps:
   3. Load IndicTrans2's SentencePiece models and vocabularies from HuggingFace
   4. Prepend src & tgt language tags (e.g., eng_Latn hin_Deva) to source sequences
   5. Tokenize src/tgt pairs into token IDs using SentencePiece and vocabulary maps
-  6. Save tokenized output into data/tokenized/train/ and data/tokenized/test/
+  6. Save tokenized output into TOK_TRAIN_DIR and TOK_TEST_DIR (auto-routes to Google Drive on Colab)
 """
 
 import os
@@ -16,14 +16,17 @@ from dotenv import load_dotenv
 
 # IndicTransTokenizerEngine and LANG_CODES live in models/tokenizer.py (single source of truth)
 from models.tokenizer import IndicTransTokenizerEngine, LANG_CODES
+from config.train_config import train_settings as cfg
 
 load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_TRAIN_DIR = os.path.join(BASE_DIR, "data", "raw", "train")
 RAW_TEST_DIR = os.path.join(BASE_DIR, "data", "raw", "test")
-TOK_TRAIN_DIR = os.path.join(BASE_DIR, "data", "tokenized", "train")
-TOK_TEST_DIR = os.path.join(BASE_DIR, "data", "tokenized", "test")
+
+# Resolved from config (routes to Google Drive automatically on Colab if configured)
+TOK_TRAIN_DIR = cfg.TOK_TRAIN_DIR
+TOK_TEST_DIR = cfg.TOK_TEST_DIR
 
 os.makedirs(TOK_TRAIN_DIR, exist_ok=True)
 os.makedirs(TOK_TEST_DIR, exist_ok=True)
