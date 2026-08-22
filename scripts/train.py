@@ -28,7 +28,7 @@ from models.config import mnmt_config
 from models.transformer import Transformer
 from models.tokenizer import IndicTransTokenizerEngine
 from config.train_config import train_settings as cfg
-from scripts.data_utils import MNMTDataset, Collator
+from scripts.data_utils import MNMTDataset, Collator, BucketBatchSampler
 from scripts.trainutils import (
     lr_lambda,
     run_epoch,
@@ -96,10 +96,10 @@ def main():
     )
 
     collator = Collator(pad_token_id=mnmt_config.pad_token_id)
+    bucket_sampler = BucketBatchSampler(train_dataset, batch_size=cfg.BATCH_SIZE)
     train_loader = DataLoader(
         train_dataset,
-        batch_size=cfg.BATCH_SIZE,
-        shuffle=True,
+        batch_sampler=bucket_sampler,   # replaces batch_size + shuffle
         collate_fn=collator,
     )
 

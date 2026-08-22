@@ -11,6 +11,7 @@ that language's val pairs (shuffled, then last val_fraction sliced off).
 """
 
 import os
+import math
 import random
 import torch
 from torch.utils.data import Dataset
@@ -140,3 +141,62 @@ class Collator:
         src_padded = pad_sequence(src_batch, batch_first=True, padding_value=self.pad_token_id)
         tgt_padded = pad_sequence(tgt_batch, batch_first=True, padding_value=self.pad_token_id)
         return src_padded, tgt_padded
+
+
+class BucketBatchSampler:
+    """
+    Groups samples with similar source-sequence lengths together to minimize
+    padding waste inside each batch.
+
+    How it works:
+      1. Compute src lengths for all samples once at construction.
+      2. Sort all indices by src length into one big sorted list.
+      3. Chunk into buckets of `batch_size * bucket_size_multiplier` indices.
+         Samples inside one bucket all have very similar lengths.
+      4. Shuffle the bucket order every __iter__ call (epoch-level randomness).
+      5. Within each bucket, shuffle once more, then emit fixed-size batches.
+
+    Result: batches that contain short sentences are padded to a short length;
+    batches with long sentences are padded to a long length — far less wasted
+    GPU memory than always padding to the global max (512).
+    """
+
+    def __init__(self, dataset, batch_size: int, bucket_size_multiplier: int = 100):
+        """
+        Args:
+            dataset:                  MNMTDataset instance (needs .src_data list).
+            batch_size:               number of samples per batch.
+            bucket_size_multiplier:   bucket size = batch_size * this value.
+                                      Larger value → more shuffling within a bucket
+                                      but slightly less length-similarity.
+        """
+        self.batch_size = batch_size
+        self.bucket_size = batch_size * bucket_size_multiplier
+        # Compute source lengths once upfront; reused every epoch
+        self.lengths = [len(dataset.src_data[i]) for i in range(len(dataset))]
+        self.n = len(dataset)
+
+    def __iter__(self):
+        # Sort all indices by ascending src length
+        sorted_indices = sorted(range(self.n), key=lambda i: self.lengths[i])
+
+        # Split into buckets of similar-length sequences
+        buckets = [
+            sorted_indices[i: i + self.bucket_size]
+            for i in range(0, self.n, self.bucket_size)
+        ]
+
+        # Shuffle bucket order so each epoch sees batches in different order
+        random.shuffle(buckets)
+
+        for bucket in buckets:
+            # Shuffle within the bucket to avoid always seeing the exact same
+            # sentences together across epochs
+            random.shuffle(bucket)
+            for i in range(0, len(bucket), self.batch_size):
+                batch = bucket[i: i + self.batch_size]
+                if batch:  # skip empty tail if dataset size not divisible
+                    yield batch
+
+    def __len__(self):
+        return math.ceil(self.n / self.batch_size)
