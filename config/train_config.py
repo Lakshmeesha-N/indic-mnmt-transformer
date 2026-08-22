@@ -44,7 +44,7 @@ class TrainSettings(BaseSettings):
 
     # --- logging / checkpointing ---
     LOG_EVERY: int = 100
-    SAVE_EVERY: int = 1
+    SAVE_EVERY: int = 5
     USE_AMP: bool = True
 
     # --- per-language BLEU / chrF++ evaluation ---
