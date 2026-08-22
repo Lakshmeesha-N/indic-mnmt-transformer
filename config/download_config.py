@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class DownloadSettings(BaseSettings):
     DOWNLOAD_MODE: str = "develop"          # "develop" or "train"
-    DEV_SAMPLE_SIZE: int = 1000000
+    DEV_SAMPLE_SIZE: int = 100000
 
     HF_HUB_DOWNLOAD_TIMEOUT: str = "120"
     HF_HUB_ENABLE_HF_XET: str = "0"
@@ -35,11 +35,11 @@ class DownloadSettings(BaseSettings):
 
     @property
     def TRAIN_DIR(self) -> str:
-        return os.path.join(self.BASE_DIR, "data", "train")
+        return os.path.join(self.BASE_DIR, "data", "raw", "train")
 
     @property
     def TEST_DIR(self) -> str:
-        return os.path.join(self.BASE_DIR, "data", "test")
+        return os.path.join(self.BASE_DIR, "data", "raw", "test")
 
     def apply_hf_env(self):
         os.environ["HF_HUB_ENABLE_HF_XET"] = self.HF_HUB_ENABLE_HF_XET
