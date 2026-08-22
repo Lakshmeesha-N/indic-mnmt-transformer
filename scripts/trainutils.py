@@ -259,10 +259,16 @@ def greedy_decode(model, src_ids, tokenizer, device, max_len=128):
     return predicted_ids
 
 
-def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_len=128):
+def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_len=128,
+                  lang_code="??", num_print=5):
     """
     Runs greedy decoding on up to max_samples pairs from val_dataset and
     computes corpus BLEU and chrF++ using sacrebleu.
+
+    Also prints `num_print` side-by-side examples:
+        SRC  : decoded English source
+        REF  : ground-truth target text
+        HYP  : model-generated target text
 
     Args:
         val_dataset: MNMTDataset for a single language
@@ -270,6 +276,8 @@ def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_le
                      and reference IDs back to text via decode_tgt_batch()
         max_samples: cap on how many examples to decode (keeps eval fast)
         max_len:     maximum decoder steps per example
+        lang_code:   language code string shown in the printed header (e.g. "hi")
+        num_print:   how many examples to print (default 5)
 
     Returns:
         (bleu_score, chrf_score) — both as floats (0–100 scale)
@@ -279,6 +287,7 @@ def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_le
     model.eval()
     hypotheses = []
     references = []
+    src_texts   = []   # decoded source sentences for printing
     n = min(max_samples, len(val_dataset))
 
     for i in range(n):
@@ -287,16 +296,30 @@ def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_le
         pred_ids = greedy_decode(model, src_ids, tokenizer, device, max_len)
         ref_ids  = tgt_ids.tolist()
 
-        # decode_tgt_batch expects List[List[int]] and handles stop_at_eos internally
+        # Decode hypothesis and reference target text
         hyp = tokenizer.decode_tgt_batch([pred_ids], stop_at_eos=False)[0]
         ref = tokenizer.decode_tgt_batch([ref_ids],  stop_at_eos=True)[0]
 
         hypotheses.append(hyp)
         references.append(ref)
 
+        # Decode source (English) for printing — skip lang-tag IDs at the front
+        if i < num_print:
+            src_text = tokenizer.decode_src_batch([src_ids.tolist()], stop_at_eos=True)[0]
+            src_texts.append(src_text)
+
     # tokenize="none": we pass already-detokenized text — avoids double tokenization
     # which would give misleadingly wrong BLEU for Indic scripts
     bleu = sacrebleu.corpus_bleu(hypotheses, [references], tokenize="none").score
     chrf = sacrebleu.corpus_chrf(hypotheses, [references]).score
+
+    # Print side-by-side examples
+    print(f"\n  --- Translation Examples [{lang_code}] (first {num_print}) ---")
+    for i in range(min(num_print, len(hypotheses))):
+        src_display = src_texts[i] if i < len(src_texts) else "(n/a)"
+        print(f"  [{i+1}] SRC : {src_display}")
+        print(f"       REF : {references[i]}")
+        print(f"       HYP : {hypotheses[i] if hypotheses[i].strip() else '(empty)'}")
+        print()
 
     return bleu, chrf

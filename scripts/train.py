@@ -193,6 +193,7 @@ def main():
                 bleu, chrf = evaluate_bleu(
                     model, val_ds, tokenizer, device,
                     max_samples=cfg.BLEU_MAX_SAMPLES,
+                    lang_code=lang,
                 )
                 log_bleu_row(bleu_log_path, epoch, lang, bleu, chrf)
                 print(f"  Metrics [{lang}]: BLEU={bleu:.2f} | chrF++={chrf:.2f}")
