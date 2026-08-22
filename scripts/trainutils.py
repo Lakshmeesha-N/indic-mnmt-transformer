@@ -36,7 +36,8 @@ def lr_lambda(step, warmup_steps, total_steps):
 
 
 def run_epoch(model, dataloader, optimizer, scheduler, loss_fn, scaler,
-              device, pad_token_id, epoch, use_amp=True, is_train=True, log_every=100):
+              device, pad_token_id, epoch, use_amp=True, is_train=True, log_every=100,
+              step_log_path=None):
     """
     Runs one full pass over dataloader (train or validation).
 
@@ -87,7 +88,11 @@ def run_epoch(model, dataloader, optimizer, scheduler, loss_fn, scaler,
 
             if is_train and step % log_every == 0:
                 current_lr = optimizer.param_groups[0]["lr"]
-                progress.set_postfix(loss=f"{loss.item():.4f}", lr=f"{current_lr:.2e}")
+                step_loss = loss.item()
+                step_ppl = math.exp(min(step_loss, 20))
+                progress.set_postfix(loss=f"{step_loss:.4f}", lr=f"{current_lr:.2e}")
+                if step_log_path is not None:
+                    log_step_row(step_log_path, epoch, step, step_loss, step_ppl, current_lr)
 
     avg_loss = total_loss / max(total_tokens, 1)
     ppl = math.exp(min(avg_loss, 20))
@@ -118,18 +123,18 @@ def load_checkpoint(path, model, optimizer=None, device="cpu"):
 
 def init_csv_logs(log_dir):
     """
-    Creates the logs/ directory and initialises both CSV files with headers.
-    Safe to call on every run — skips header if the file already exists so
-    that resuming from a checkpoint simply appends new rows.
+    Creates the logs/ directory and initialises CSV files with headers.
+    Safe to call on every run — skips header if the file already exists.
 
     Returns:
-        (train_log_path, bleu_log_path) — absolute paths to both CSV files.
+        (train_log_path, bleu_log_path, step_log_path)
     """
     import csv
     os.makedirs(log_dir, exist_ok=True)
 
     train_log = os.path.join(log_dir, "train_log.csv")
     bleu_log  = os.path.join(log_dir, "bleu_log.csv")
+    step_log  = os.path.join(log_dir, "step_log.csv")
 
     if not os.path.exists(train_log):
         with open(train_log, "w", newline="", encoding="utf-8") as f:
@@ -139,7 +144,20 @@ def init_csv_logs(log_dir):
         with open(bleu_log, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["epoch", "language", "bleu_score", "chrf_score"])
 
-    return train_log, bleu_log
+    if not os.path.exists(step_log):
+        with open(step_log, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(["epoch", "step", "train_loss", "train_ppl", "lr", "timestamp"])
+
+    return train_log, bleu_log, step_log
+
+
+def log_step_row(path, epoch, step, train_loss, train_ppl, lr):
+    """Appends one step row to step_log.csv every N steps."""
+    import csv
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow([epoch, step, f"{train_loss:.6f}", f"{train_ppl:.4f}", f"{lr:.6e}", timestamp])
 
 
 def log_train_row(path, epoch, lang, train_loss, val_loss, val_ppl):

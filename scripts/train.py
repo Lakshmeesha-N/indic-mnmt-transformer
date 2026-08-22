@@ -80,8 +80,8 @@ def main():
     os.makedirs(cfg.LOG_DIR, exist_ok=True)
 
     # 1. Initialize CSV logs
-    train_log_path, bleu_log_path = init_csv_logs(cfg.LOG_DIR)
-    print(f"Logs will be written to:\n  {train_log_path}\n  {bleu_log_path}")
+    train_log_path, bleu_log_path, step_log_path = init_csv_logs(cfg.LOG_DIR)
+    print(f"Logs will be written to:\n  {train_log_path}\n  {bleu_log_path}\n  {step_log_path}")
 
     # 2. Load tokenized dataset (98% train, 2% per-language val)
     print("\n--- Loading Data ---")
@@ -170,6 +170,7 @@ def main():
             model, train_loader, optimizer, scheduler, loss_fn, scaler,
             device, mnmt_config.pad_token_id, epoch,
             use_amp=cfg.USE_AMP, is_train=True, log_every=cfg.LOG_EVERY,
+            step_log_path=step_log_path,
         )
         print(f"Train: loss={train_loss:.4f} | ppl={train_ppl:.2f}")
 
