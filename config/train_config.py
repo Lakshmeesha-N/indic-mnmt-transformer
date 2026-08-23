@@ -13,7 +13,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def is_colab() -> bool:
     """Checks if the code is executing inside a Google Colab notebook environment."""
-    return "google.colab" in sys.modules or os.path.exists("/content")
+    return "google.colab" in sys.modules or (os.path.exists("/content") and not os.path.exists("/kaggle"))
+
+
+def is_kaggle() -> bool:
+    """Checks if the code is executing inside a Kaggle notebook environment."""
+    return "kaggle_web_client" in sys.modules or os.path.exists("/kaggle")
 
 
 def mount_google_drive(mount_point: str = "/content/drive"):
@@ -21,7 +26,7 @@ def mount_google_drive(mount_point: str = "/content/drive"):
     Mounts Google Drive automatically if running in Google Colab.
     Safe to call multiple times (checks if already mounted).
     """
-    if is_colab():
+    if is_colab() and not is_kaggle():
         try:
             from google.colab import drive
             if not os.path.exists(mount_point):
