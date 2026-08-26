@@ -53,8 +53,9 @@ class TrainSettings(BaseSettings):
     USE_AMP: bool = True
 
     # --- per-language BLEU / chrF++ evaluation ---
-    BLEU_EVAL_EVERY: int = 1     # run greedy-decode eval every N epochs
-    BLEU_MAX_SAMPLES: int = 200  # max val examples per language to decode
+    ENABLE_BLEU_EVAL: bool = False  # Set to True to enable autoregressive BLEU/chrF++ eval
+    BLEU_EVAL_EVERY: int = 1        # run greedy-decode eval every N epochs (if enabled)
+    BLEU_MAX_SAMPLES: int = 200     # max val examples per language to decode
 
     # --- storage & google drive settings ---
     USE_DRIVE_ON_COLAB: bool = True

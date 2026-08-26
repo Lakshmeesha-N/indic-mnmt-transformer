@@ -155,10 +155,12 @@ def main():
         print(f"Training already completed up to epoch {start_epoch - 1} (NUM_EPOCHS={cfg.NUM_EPOCHS}). Exiting.")
         return
 
-    # 5. Initialize Tokenizer for BLEU / chrF++ evaluation
-    print("\n--- Loading Tokenizer for Evaluation ---")
-    hf_token = os.environ.get("HF_TOKEN")
-    tokenizer = IndicTransTokenizerEngine(token=hf_token)
+    # 5. Initialize Tokenizer for BLEU / chrF++ evaluation (if enabled)
+    tokenizer = None
+    if cfg.ENABLE_BLEU_EVAL:
+        print("\n--- Loading Tokenizer for Evaluation ---")
+        hf_token = os.environ.get("HF_TOKEN")
+        tokenizer = IndicTransTokenizerEngine(token=hf_token)
 
     # 6. Main Training Loop
     print("\n--- Starting Training Loop ---")
@@ -186,8 +188,8 @@ def main():
 
         avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0.0
 
-        # Periodic BLEU / chrF++ evaluation (greedy decoding per language)
-        if epoch % cfg.BLEU_EVAL_EVERY == 0:
+        # Periodic BLEU / chrF++ evaluation (greedy decoding per language, optional)
+        if cfg.ENABLE_BLEU_EVAL and (epoch % cfg.BLEU_EVAL_EVERY == 0):
             print(f"  Evaluating BLEU & chrF++ (samples={cfg.BLEU_MAX_SAMPLES})...")
             for lang, val_ds in val_splits.items():
                 bleu, chrf = evaluate_bleu(
