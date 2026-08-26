@@ -46,7 +46,6 @@ os.makedirs(settings.TEST_DIR, exist_ok=True)
 MODE = settings.DOWNLOAD_MODE.strip().lower()
 
 LANGS = {
-    "hi": "hin_Deva",
     "kn": "kan_Knda",
     "ta": "tam_Taml",
 }

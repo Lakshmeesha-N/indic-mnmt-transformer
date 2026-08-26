@@ -17,7 +17,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 
-LANGS = ["hi", "kn", "ta"]
+LANGS = ["kn", "ta"]
 
 
 def _load_ids(path):

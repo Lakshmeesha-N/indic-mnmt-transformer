@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DownloadSettings(BaseSettings):
-    DOWNLOAD_MODE: str = "develop"          # "develop" or "train"
+    DOWNLOAD_MODE: str = "train"          # "develop" or "train"
     DEV_SAMPLE_SIZE: int = 100000
 
     HF_HUB_DOWNLOAD_TIMEOUT: str = "120"
