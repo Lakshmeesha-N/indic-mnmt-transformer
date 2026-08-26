@@ -2,40 +2,11 @@
 config/train_config.py
 
 Configuration for the training and preprocessing stage.
-Auto-detects Google Colab environment, mounts Google Drive if running on Colab,
-and routes tokenized data, checkpoints, and logs directly to Google Drive without needing a .env file.
+Uses simple configurable paths and environment variables (.env / system env).
 """
 
 import os
-import sys
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-def is_colab() -> bool:
-    """Checks if the code is executing inside a Google Colab notebook environment."""
-    return "google.colab" in sys.modules or (os.path.exists("/content") and not os.path.exists("/kaggle"))
-
-
-def is_kaggle() -> bool:
-    """Checks if the code is executing inside a Kaggle notebook environment."""
-    return "kaggle_web_client" in sys.modules or os.path.exists("/kaggle")
-
-
-def mount_google_drive(mount_point: str = "/content/drive"):
-    """
-    Mounts Google Drive automatically if running in Google Colab.
-    Safe to call multiple times (checks if already mounted).
-    """
-    if is_colab() and not is_kaggle():
-        try:
-            from google.colab import drive
-            if not os.path.exists(mount_point):
-                print(f"[Drive] Mounting Google Drive to {mount_point} ...")
-                drive.mount(mount_point)
-            else:
-                print(f"[Drive] Google Drive is already mounted at {mount_point}")
-        except Exception as e:
-            print(f"[Drive] Warning: Could not mount Google Drive ({e}). Falling back to local storage.")
 
 
 class TrainSettings(BaseSettings):
@@ -57,12 +28,7 @@ class TrainSettings(BaseSettings):
     BLEU_EVAL_EVERY: int = 1        # run greedy-decode eval every N epochs (if enabled)
     BLEU_MAX_SAMPLES: int = 200     # max val examples per language to decode
 
-    # --- storage & google drive settings ---
-    USE_DRIVE_ON_COLAB: bool = True
-    STORE_TOKENIZED_ON_DRIVE: bool = True  # If True, stores data/tokenized on Drive
-    DRIVE_FOLDER_NAME: str = "MMT"          # Root folder created in Google Drive
-
-    # Optional manual overrides (if set, takes highest priority)
+    # --- Path Overrides (optional: set via .env or environment variable) ---
     CKPT_DIR_OVERRIDE: str = ""
     LOG_DIR_OVERRIDE: str = ""
     TOK_DIR_OVERRIDE: str = ""
@@ -85,12 +51,6 @@ class TrainSettings(BaseSettings):
             os.makedirs(path, exist_ok=True)
             return path
 
-        if is_colab() and self.USE_DRIVE_ON_COLAB and self.STORE_TOKENIZED_ON_DRIVE:
-            mount_google_drive()
-            drive_tok_dir = f"/content/drive/MyDrive/{self.DRIVE_FOLDER_NAME}/data/tokenized/train"
-            os.makedirs(drive_tok_dir, exist_ok=True)
-            return drive_tok_dir
-
         path = os.path.join(self.BASE_DIR, "data", "tokenized", "train")
         os.makedirs(path, exist_ok=True)
         return path
@@ -102,12 +62,6 @@ class TrainSettings(BaseSettings):
             os.makedirs(path, exist_ok=True)
             return path
 
-        if is_colab() and self.USE_DRIVE_ON_COLAB and self.STORE_TOKENIZED_ON_DRIVE:
-            mount_google_drive()
-            drive_tok_dir = f"/content/drive/MyDrive/{self.DRIVE_FOLDER_NAME}/data/tokenized/test"
-            os.makedirs(drive_tok_dir, exist_ok=True)
-            return drive_tok_dir
-
         path = os.path.join(self.BASE_DIR, "data", "tokenized", "test")
         os.makedirs(path, exist_ok=True)
         return path
@@ -115,13 +69,8 @@ class TrainSettings(BaseSettings):
     @property
     def CKPT_DIR(self) -> str:
         if self.CKPT_DIR_OVERRIDE:
+            os.makedirs(self.CKPT_DIR_OVERRIDE, exist_ok=True)
             return self.CKPT_DIR_OVERRIDE
-
-        if is_colab() and self.USE_DRIVE_ON_COLAB:
-            mount_google_drive()
-            drive_ckpt_dir = f"/content/drive/MyDrive/{self.DRIVE_FOLDER_NAME}/checkpoints"
-            os.makedirs(drive_ckpt_dir, exist_ok=True)
-            return drive_ckpt_dir
 
         path = os.path.join(self.BASE_DIR, "checkpoints")
         os.makedirs(path, exist_ok=True)
@@ -130,13 +79,8 @@ class TrainSettings(BaseSettings):
     @property
     def LOG_DIR(self) -> str:
         if self.LOG_DIR_OVERRIDE:
+            os.makedirs(self.LOG_DIR_OVERRIDE, exist_ok=True)
             return self.LOG_DIR_OVERRIDE
-
-        if is_colab() and self.USE_DRIVE_ON_COLAB:
-            mount_google_drive()
-            drive_log_dir = f"/content/drive/MyDrive/{self.DRIVE_FOLDER_NAME}/logs"
-            os.makedirs(drive_log_dir, exist_ok=True)
-            return drive_log_dir
 
         path = os.path.join(self.BASE_DIR, "logs")
         os.makedirs(path, exist_ok=True)
