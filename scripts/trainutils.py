@@ -308,15 +308,17 @@ def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_le
         ref_ids  = tgt_ids.tolist()
 
         # Decode hypothesis and reference target text
+        # Note: ref_ids starts with BOS (id=2, same as EOS). We slice [1:] so stop_at_eos
+        # stops at the trailing EOS instead of truncating at the leading BOS.
         hyp = tokenizer.decode_tgt_batch([pred_ids], stop_at_eos=False)[0]
-        ref = tokenizer.decode_tgt_batch([ref_ids],  stop_at_eos=True)[0]
+        ref = tokenizer.decode_tgt_batch([ref_ids[1:]],  stop_at_eos=True)[0]
 
         hypotheses.append(hyp)
         references.append(ref)
 
-        # Decode source (English) for printing — skip lang-tag IDs at the front
+        # Decode source (English) for printing — skip the 2 leading lang-tag IDs [src_lang, tgt_lang]
         if i < num_print:
-            src_text = tokenizer.decode_src_batch([src_ids.tolist()], stop_at_eos=True)[0]
+            src_text = tokenizer.decode_src_batch([src_ids.tolist()[2:]], stop_at_eos=True)[0]
             src_texts.append(src_text)
 
     # tokenize="none": we pass already-detokenized text — avoids double tokenization
