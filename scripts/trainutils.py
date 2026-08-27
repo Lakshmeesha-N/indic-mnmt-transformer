@@ -238,16 +238,27 @@ def greedy_decode(model, src_ids, tokenizer, device, max_len=128):
         List[int] — predicted target token IDs (bos excluded, stops at eos exclusive)
     """
     model.eval()
-    bos_id = tokenizer.tgt_vocab.get("<s>", 0)
+    # Bug 1 fix: IndicTrans2 has no separate "<s>" token; "</s>" (id=2) is used
+    # as BOS in SentencePiece seq2seq — same token that encode_tgt_batch now
+    # prepends, so training and inference share the same starting token.
+    bos_id = tokenizer.tgt_eos_id   # </s> = 2, used as BOS
     eos_id = tokenizer.tgt_eos_id
 
     src = src_ids.unsqueeze(0).to(device)           # [1, src_len]
+
+    # Bug 3 fix: encode the source sequence ONCE before the decode loop.
+    # Previously model(src, dec_input) re-ran the full encoder on every step,
+    # costing O(max_len × src_len²) instead of O(src_len²) + O(max_len × tgt_len).
+    with torch.no_grad():
+        encoder_output = model.encode(src)           # [1, src_len, d_model]
+
     dec_input = torch.tensor([[bos_id]], device=device)  # [1, 1]
 
     predicted_ids = []
     with torch.no_grad():
         for _ in range(max_len):
-            logits = model(src, dec_input)           # [1, cur_len, vocab_size]
+            decoder_output = model.decode(dec_input, encoder_output, src)  # [1, cur_len, d_model]
+            logits = model.generator(decoder_output)                       # [1, cur_len, vocab_size]
             next_id = logits[0, -1, :].argmax(-1).item()
             if next_id == eos_id:
                 break

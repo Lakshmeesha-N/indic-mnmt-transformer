@@ -58,26 +58,44 @@ class IndicTransTokenizerEngine:
     # Encoding (text -> token IDs)
     # -----------------------------------------------------------------
     def encode_src_batch(self, src_lang: str, tgt_lang: str, texts: list, max_len: int = MAX_TOKENIZE_LEN):
-        """Tags + tokenizes a batch of English source sentences."""
+        """Tags + tokenizes a batch of English source sentences.
+
+        Produces sequences of the form:
+          [src_lang_tag, tgt_lang_tag, tok₁, tok₂, ..., tokₙ, EOS]
+
+        No BOS is prepended — the language tags serve as the leading signal,
+        and the encoder reads the full sequence at once (non-autoregressive),
+        so it does not need a BOS the way the decoder does.
+        """
         results = []
         for text in texts:
             pieces = [src_lang, tgt_lang] + self.src_spm.encode(str(text), out_type=str)
             ids = [self.src_vocab.get(p, self.src_unk_id) for p in pieces]
-            if len(ids) > max_len - 1:
+            if len(ids) > max_len - 1:      # -1 reserves space for EOS only
                 ids = ids[: max_len - 1]
-            ids.append(self.src_eos_id)
+            ids = ids + [self.src_eos_id]   # [lang_tags, tokens, EOS]
             results.append(ids)
         return results
 
     def encode_tgt_batch(self, texts: list, max_len: int = MAX_TOKENIZE_LEN):
-        """Tokenizes a batch of Hindi/Kannada/Tamil target sentences."""
+        """Tokenizes a batch of Hindi/Kannada/Tamil target sentences.
+
+        Produces sequences of the form: [BOS, tok₁, tok₂, ..., tokₙ, EOS]
+        where BOS = EOS = </s> (id=2), the SentencePiece seq2seq convention.
+
+        This ensures teacher-forcing in run_epoch() works correctly:
+          decoder_input = tgt_ids[:, :-1]  → [BOS, tok₁, ..., tokₙ]
+          labels        = tgt_ids[:, 1:]   → [tok₁, ..., tokₙ, EOS]
+        and greedy_decode() can start from the same BOS token.
+        """
+        bos_id = self.tgt_eos_id   # </s> (id=2) doubles as BOS in SentencePiece seq2seq
         results = []
         for text in texts:
             pieces = self.tgt_spm.encode(str(text), out_type=str)
             ids = [self.tgt_vocab.get(p, self.tgt_unk_id) for p in pieces]
-            if len(ids) > max_len - 1:
-                ids = ids[: max_len - 1]
-            ids.append(self.tgt_eos_id)
+            if len(ids) > max_len - 2:      # -2 reserves space for BOS + EOS
+                ids = ids[: max_len - 2]
+            ids = [bos_id] + ids + [self.tgt_eos_id]   # [BOS, tok₁, …, tokₙ, EOS]
             results.append(ids)
         return results
 
