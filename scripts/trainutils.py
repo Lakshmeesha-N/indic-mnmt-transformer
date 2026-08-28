@@ -238,11 +238,8 @@ def greedy_decode(model, src_ids, tokenizer, device, max_len=128):
         List[int] — predicted target token IDs (bos excluded, stops at eos exclusive)
     """
     model.eval()
-    # Bug 1 fix: IndicTrans2 has no separate "<s>" token; "</s>" (id=2) is used
-    # as BOS in SentencePiece seq2seq — same token that encode_tgt_batch now
-    # prepends, so training and inference share the same starting token.
-    bos_id = tokenizer.tgt_eos_id   # </s> = 2, used as BOS
-    eos_id = tokenizer.tgt_eos_id
+    bos_id = tokenizer.tgt_bos_id   # <s> = 0 used as BOS
+    eos_id = tokenizer.tgt_eos_id   # </s> = 2 used as EOS
 
     src = src_ids.unsqueeze(0).to(device)           # [1, src_len]
 
@@ -308,8 +305,8 @@ def evaluate_bleu(model, val_dataset, tokenizer, device, max_samples=200, max_le
         ref_ids  = tgt_ids.tolist()
 
         # Decode hypothesis and reference target text
-        # Note: ref_ids starts with BOS (id=2, same as EOS). We slice [1:] so stop_at_eos
-        # stops at the trailing EOS instead of truncating at the leading BOS.
+        # Note: ref_ids starts with BOS (<s> = 0). We slice [1:] so decode_tgt_batch
+        # strips BOS and truncates cleanly at trailing EOS (</s> = 2).
         hyp = tokenizer.decode_tgt_batch([pred_ids], stop_at_eos=False)[0]
         ref = tokenizer.decode_tgt_batch([ref_ids[1:]],  stop_at_eos=True)[0]
 

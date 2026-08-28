@@ -40,10 +40,15 @@ class IndicTransTokenizerEngine:
         self.src_spm = SentencePieceProcessor(model_file=src_spm_path)
         self.tgt_spm = SentencePieceProcessor(model_file=tgt_spm_path)
 
-        self.src_unk_id = self.src_vocab.get("<unk>", 3)
+        self.src_bos_id = self.src_vocab.get("<s>", 0)
+        self.src_pad_id = self.src_vocab.get("<pad>", 1)
         self.src_eos_id = self.src_vocab.get("</s>", 2)
-        self.tgt_unk_id = self.tgt_vocab.get("<unk>", 3)
+        self.src_unk_id = self.src_vocab.get("<unk>", 3)
+
+        self.tgt_bos_id = self.tgt_vocab.get("<s>", 0)
+        self.tgt_pad_id = self.tgt_vocab.get("<pad>", 1)
         self.tgt_eos_id = self.tgt_vocab.get("</s>", 2)
+        self.tgt_unk_id = self.tgt_vocab.get("<unk>", 3)
 
         # reverse lookup tables (id -> piece), built once, used by decode methods
         self._src_id_to_piece = {v: k for k, v in self.src_vocab.items()}
@@ -52,7 +57,7 @@ class IndicTransTokenizerEngine:
         print(f"Loaded src_vocab ({len(self.src_vocab)} tokens), tgt_vocab ({len(self.tgt_vocab)} tokens).")
         print("Language tag IDs in src_vocab:")
         for lang, (src_tag, tgt_tag) in LANG_CODES.items():
-            print(f"  {lang}: {src_tag} -> {self.src_vocab.get(src_tag)}, {tgt_tag} -> {self.src_vocab.get(tgt_tag)}")
+            print(f"  {lang}: {src_tag} -> {self.src_vocab.get(src_tag)}, {tgt_tag} -> {self.tgt_vocab.get(tgt_tag)}")
 
     # -----------------------------------------------------------------
     # Encoding (text -> token IDs)
@@ -81,14 +86,14 @@ class IndicTransTokenizerEngine:
         """Tokenizes a batch of Hindi/Kannada/Tamil target sentences.
 
         Produces sequences of the form: [BOS, tok₁, tok₂, ..., tokₙ, EOS]
-        where BOS = EOS = </s> (id=2), the SentencePiece seq2seq convention.
+        where BOS = <s> (id=0) and EOS = </s> (id=2).
 
         This ensures teacher-forcing in run_epoch() works correctly:
           decoder_input = tgt_ids[:, :-1]  → [BOS, tok₁, ..., tokₙ]
           labels        = tgt_ids[:, 1:]   → [tok₁, ..., tokₙ, EOS]
         and greedy_decode() can start from the same BOS token.
         """
-        bos_id = self.tgt_eos_id   # </s> (id=2) doubles as BOS in SentencePiece seq2seq
+        bos_id = self.tgt_bos_id   # <s> (id=0) as distinct BOS token
         results = []
         for text in texts:
             pieces = self.tgt_spm.encode(str(text), out_type=str)

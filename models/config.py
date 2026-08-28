@@ -19,8 +19,9 @@ class MNMTConfig:
     tgt_vocab_size: int = 122672
     """Vocabulary size of the Hindi/Kannada/Tamil (target) tokenizer (dict.TGT.json)."""
 
-    pad_token_id: int = 0
-    """Token ID used for padding. Passed to nn.Embedding(padding_idx=...)."""
+    pad_token_id: int = 1
+    """Token ID used for padding. <pad> = id 1 in both dict.SRC.json and dict.TGT.json.
+    Passed to nn.Embedding(padding_idx=...) and used in attention masks and loss ignore_index."""
 
     # === Core Model Dimensions ===
     d_model: int = 512
