@@ -119,9 +119,7 @@ python train.py
 ```
 Trains the model, logging loss/perplexity/BLEU per language to `logs/`, and saving checkpoints to `checkpoints/`. Automatically resumes from the latest checkpoint if one exists.
 
-## Deadline
 
-17/08/2026
 
 ## References
 
